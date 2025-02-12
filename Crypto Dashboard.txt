@@ -1,0 +1,48 @@
+?
+import streamlit as st
+import requests
+import pandas as pd
+import plotly.graph_objects as go
+
+# Function to get crypto prices from Binance
+def get_crypto_price(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+    response = requests.get(url).json()
+    return float(response['price'])
+
+# Function to get crypto news from CoinGecko
+def get_crypto_news():
+    url = "https://api.coingecko.com/api/v3/news"
+    response = requests.get(url).json()
+    return response.get('data', [])
+
+# Function to get historical data for charts
+def get_historical_data(symbol, interval='1d', limit=30):
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    response = requests.get(url).json()
+    df = pd.DataFrame(response, columns=["timestamp", "open", "high", "low", "close", "volume", "close_time", "quote_asset_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"])
+    df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+    df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].astype(float)
+    return df
+
+# Streamlit UI
+st.title("Crypto Trading Dashboard")
+
+# Select cryptocurrency
+crypto_symbol = st.selectbox("Select Crypto:", ["BTCUSDT", "ETHUSDT", "BNBUSDT"])
+
+# Get price and display
+price = get_crypto_price(crypto_symbol)
+st.metric(label=f"{crypto_symbol} Price", value=f"${price:.2f}")
+
+# Get historical data and plot candlestick chart
+df = get_historical_data(crypto_symbol)
+fig = go.Figure(data=[go.Candlestick(x=df['timestamp'], open=df['open'], high=df['high'], low=df['low'], close=df['close'])])
+fig.update_layout(title=f"{crypto_symbol} Price Chart", xaxis_title="Time", yaxis_title="Price (USDT)")
+st.plotly_chart(fig)
+
+# Get news and display
+st.subheader("Latest Crypto News")
+news = get_crypto_news()
+for article in news[:5]:
+    st.write(f"[{article['title']}]({article['url']})")
